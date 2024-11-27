@@ -1,1 +1,105 @@
+library("matrixTests")
+library("ggplot2")
+library("ggrepel")
+library("enrichR")
+library("cowplot")
+library("STRINGdb")
+library("gplots")
+library("MASS")
 
+data = read.delim("./02_data/Project-1918Mice.txt")
+
+DE = function(data, cond1, cond2) {
+  # Subset data for the two conditions
+  data_cond1 = data[, grepl(cond1, colnames(data))]
+  data_cond2 = data[, grepl(cond2, colnames(data))]
+  
+  # Perform unpaired t-test for each gene
+  ttest_pvalues = apply(data, 1, function(row) {
+    t.test(row[grepl(cond1, colnames(data))], 
+           row[grepl(cond2, colnames(data))],
+           paired = FALSE)$p.value
+  })
+  
+  # Compute log2 fold-change
+  mean_cond1 = rowMeans(data_cond1)
+  mean_cond2 = rowMeans(data_cond2)
+  log2fc = log2(mean_cond1 / mean_cond2)
+  
+  # Compile results
+  res = data.frame(
+    genenames = rownames(data),
+    pvalue = ttest_pvalues,
+    log2fc = log2fc
+  )
+  
+  # Add additional columns
+  res$mlog10pvalue = -log10(res$pvalue)
+  res$dir = "ns"
+  res$dir[res$log2fc > 0] = "up-regulated"
+  res$dir[res$log2fc < 0] = "down-regulated"
+  res$dir[res$mlog10pvalue < 2] = "ns"
+  
+  # Select the top 20 significant genes
+  top_res = res[order(res$mlog10pvalue, decreasing = TRUE), ]
+  top_res = top_res[1:20, ]
+  
+  # Generate volcano plot
+  plot = ggplot() +
+    ggtitle("Volcano Plot") +
+    geom_point(data = res, aes(x = log2fc, y = mlog10pvalue, color = dir), size = 1) +
+    geom_text_repel(data = top_res, aes(x = log2fc, y = mlog10pvalue, label = genenames),
+                    size = 2, max.overlaps = Inf) +
+    scale_color_manual(values = c("down-regulated" = "green", "up-regulated" = "red")) +
+    xlab("log2(fold-change)") +
+    ylab("-log10(p-value)") +
+    geom_hline(yintercept = 2, color = "gray", linetype = "dashed") +
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+  
+  print(plot)
+  
+  return(res)
+}
+
+# Generate PDF to save plots
+pdf("./03_figures/20_temp.pdf")
+
+# Define conditions
+conditions <- c("HA", "like", "PB2", "WT", "DKALB")
+control <- "mock"
+
+# Loop through all conditions and stages
+for (condition in conditions) {
+  for (timepoint in c("D1","D2", "D4")) {
+    # Compare each condition vs control at a given timepoint
+    res = DE(data, paste0(condition, "_", timepoint), paste0(control, timepoint))
+    
+    # Filter significant results
+    res = res[res$dir != "ns", ]
+    
+    # Prepare data for STRINGdb
+    dataforstringdb = res[, c("pvalue", "log2fc", "genenames")]
+    colnames(dataforstringdb) = c("pvalue", "logFC", "gene")
+    
+    # Map to STRINGdb
+    example1_mapped <- string_db$map(dataforstringdb, "gene", removeUnmappedRows = TRUE)
+    hits <- example1_mapped$STRING_id
+    string_db$plot_network(hits)
+    
+    # Save significant gene names
+    genenames = rownames(res)
+    write.table(genenames,
+                file = paste0("./04_lists/", condition, "_", timepoint, "_vs_baseline.txt"),
+                sep = "\t",
+                row.names = FALSE,
+                col.names = FALSE,
+                quote = FALSE)
+  }
+}
+
+# Close PDF
+dev.off()
