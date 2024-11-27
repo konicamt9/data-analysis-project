@@ -8,6 +8,8 @@ library("gplots")
 library("MASS")
 
 data = read.delim("./02_data/Project-1918Mice.txt")
+load("./data1.Rsave")
+
 
 DE = function(data, cond1, cond2) {
   # Subset data for the two conditions
