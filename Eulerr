@@ -6,6 +6,18 @@ D1_lists <- upregulated_lists[grepl("_D1", names(upregulated_lists))]
 D2_lists <- upregulated_lists[grepl("_D2", names(upregulated_lists))]
 D4_lists <- upregulated_lists[grepl("_D4", names(upregulated_lists))]
 
+#Plot the 3 euler diagrams
+par(mfrow = c(1, 3))  # Arrange plots in a single row
+# D1
+D1_euler <- euler(D1_lists)
+plot(D1_euler, quantities = TRUE, main = "Euler Diagram - D1")
+# D2
+D2_euler <- euler(D2_lists)
+plot(D2_euler, quantities = TRUE, main = "Euler Diagram - D2")
+# D4
+D4_euler <- euler(D4_lists)
+plot(D4_euler, quantities = TRUE, main = "Euler Diagram - D4")
+
 # Extracting shared genes : 
 ##: Using D1_lists to create the Euler diagram
 D1_euler <- euler(D1_lists)
