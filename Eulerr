@@ -85,3 +85,20 @@ shared_genes = list(D1 = D1_shared, D2 = D2_shared, D4 = D4_shared)
 #Venn between D1, D2 and D4 shared genes
 shared_euler <- euler(shared_genes)
 plot(shared_euler, quantities = TRUE, main = "Euler Diagram - share genes")
+
+#Extract subsets and their gene names in the last Venn diagram
+shared_subsets <- lapply(names(shared_euler$original.values), function(subset) {
+  # Split the subset string into individual sets
+  sets <- unlist(strsplit(subset, "&"))
+  
+  # Perform intersection or union of sets
+  genes <- Reduce(intersect, shared_genes[sets])
+  if (length(sets) == 1) {
+    genes <- shared_genes[[sets]]  # Handle individual sets (no intersection)
+  }
+  return(genes)
+})
+
+# Assign subset names to the list
+names(shared_subsets) <- names(shared_euler$original.values)
+
