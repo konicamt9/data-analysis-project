@@ -1,0 +1,75 @@
+library(eulerr)
+
+load("./05_save/upregulated_lists.Rsave")
+
+D1_lists <- upregulated_lists[grepl("_D1", names(upregulated_lists))]
+D2_lists <- upregulated_lists[grepl("_D2", names(upregulated_lists))]
+D4_lists <- upregulated_lists[grepl("_D4", names(upregulated_lists))]
+
+# Extracting shared genes : 
+##: Using D1_lists to create the Euler diagram
+D1_euler <- euler(D1_lists)
+# Extract subsets and their gene names
+D1_subsets <- lapply(names(D1_euler$original.values), function(subset) {
+  # Split the subset string into individual sets
+  sets <- unlist(strsplit(subset, "&"))
+  # Perform intersection or union of sets
+  genes <- Reduce(intersect, D1_lists[sets])
+  if (length(sets) == 1) {
+    genes <- D1_lists[[sets]]  # Handle individual sets (no intersection)
+  }
+  return(genes)
+})
+# Assign subset names to the list
+names(D1_subsets) <- names(D1_euler$original.values)
+
+# ForD2
+D2_euler <- euler(D2_lists)
+D2_subsets <- lapply(names(D2_euler$original.values), function(subset) {
+  sets <- unlist(strsplit(subset, "&"))
+  genes <- Reduce(intersect, D2_lists[sets])
+  if (length(sets) == 1) {
+    genes <- D2_lists[[sets]]
+  }
+  return(genes)
+})
+names(D2_subsets) <- names(D2_euler$original.values)
+
+#D4
+# ForD2
+D4_euler <- euler(D4_lists)
+D4_subsets <- lapply(names(D4_euler$original.values), function(subset) {
+  sets <- unlist(strsplit(subset, "&"))
+  genes <- Reduce(intersect, D4_lists[sets])
+  if (length(sets) == 1) {
+    genes <- D4_lists[[sets]]
+  }
+  return(genes)
+})
+names(D4_subsets) <- names(D4_euler$original.values)
+
+##extract the euler subparts list of genes
+D1_subsets <- lapply(names(D1_euler$original.values), function(subset) {
+  # Split the subset string into individual sets
+  sets <- unlist(strsplit(subset, "&"))
+  
+  # Perform intersection or union of sets
+  genes <- Reduce(intersect, D1_lists[sets])
+  if (length(sets) == 1) {
+    genes <- D1_lists[[sets]]  # Handle individual sets (no intersection)
+  }
+  return(genes)
+})
+
+# Assign subset names to the list
+names(D1_subsets) <- names(D1_euler$original.values)
+
+
+D1_shared = D1_subsets$`PB2_D1&WT_D1&HA_D1&like_D1&DK_D1`
+D2_shared = D2_subsets$`PB2_D2&WT_D2&HA_D2&like_D2&DK_D2`
+D4_shared = D4_subsets$`WT_D4&HA_D4&like_D4&DK_D4`
+shared_genes = list(D1 = D1_shared, D2 = D2_shared, D4 = D4_shared)
+
+#Venn between D1, D2 and D4 shared genes
+shared_euler <- euler(shared_genes)
+plot(shared_euler, quantities = TRUE, main = "Euler Diagram - share genes")
