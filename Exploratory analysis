@@ -1,0 +1,95 @@
+# Load necessary libraries
+library(matrixTests)
+library(ggplot2)
+library(ggrepel)
+library(enrichR)
+library(cowplot)
+library(STRINGdb)
+library(gplots)
+library(MASS)
+library(dplyr)
+library(eulerr)
+
+#1. Data Preparation
+##a. Import Data
+# Import count data
+data <- read.delim("./02_data/Project-1918Mice.txt")
+
+##b. extract conditions and timepoints
+sample_labels <- colnames(data)
+conditions <- gsub("_D[0-9]_[0-9]+", "", sample_labels) # Extract conditions
+timepoints <- gsub(".*_(D[0-9])_.*", "\\1", sample_labels) # Extract timepoints
+
+#2. Exploratory Data Analysis
+##a. PCA for Global Trends
+# Log-transform data
+log_data <- log2(data + 1)
+# Perform PCA
+pca <- prcomp(t(log_data), scale. = TRUE)
+# Plot PCA
+pca_data <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  condition = conditions,
+  timepoint = timepoints
+)
+# Plot PCA
+library(ggplot2)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = condition, shape = timepoint)) +
+  geom_point(size = 3) +
+  labs(title = "PCA of Transcriptomic Data", x = "Principal Component 1", y = "Principal Component 2") +
+  theme_minimal()
+
+##autre solution :
+library("FactoMineR")
+library("factoextra")
+pca <- prcomp(t(log_data), scale. = TRUE)
+res_pca <- PCA(t(log_data), graph = FALSE)
+fviz_pca_ind(res_pca, title = "PCA temp")       #bad representation
+fviz_pca_var(res_pca, select.var = list(cos2 = 40), title = "PCA genes")
+
+
+##b. MDS 
+# Log-transform data (if not already done)
+log_data <- log2(data + 1)
+# Compute pairwise Euclidean distances between samples
+dist_matrix <- dist(t(log_data))
+# Perform MDS
+mds <- cmdscale(dist_matrix, k = 2) # Reduce to 2 dimensions
+# Prepare data for plotting
+mds_data <- data.frame(
+     Dim1 = mds[,1],
+     Dim2 = mds[,2],
+     condition = conditions,
+     timepoint = timepoints
+     )
+# Plot MDS
+ggplot(mds_data, aes(x = Dim1, y = Dim2, color = conditions, shape = timepoints)) +
+  geom_point(size = 3) +
+  labs(title = "MDS Plot of Transcriptomic Data", x = "Dimension 1", y = "Dimension 2") +
+  theme_cowplot()
+
+#kmeans clustering
+set.seed(123)  # Set seed for reproducibility
+kmeans_input <- mds_data[, c("Dim1", "Dim2")]
+kmeans_result <- kmeans(kmeans_input, centers = 9)
+# Add cluster information to MDS dataframe
+mds_data$cluster <- as.factor(kmeans_result$cluster)
+# Create convex hulls for each cluster
+convex_hulls <- mds_data %>%
+  group_by(cluster) %>%
+  slice(chull(Dim1, Dim2))  # Calculate convex hull points
+# Visualize MDS with clusters
+ggplot(mds_data, aes(x = Dim1, y = Dim2)) +
+     geom_point(aes(color = conditions, shape = timepoints), size = 3) + 
+     geom_polygon(data = convex_hulls, aes(x = Dim1, y = Dim2, fill = cluster, group = cluster), 
+                                     alpha = 0.3) +  # Transparent polygons for convex hulls
+     labs(title = "MDS with Convex Hulls for Clusters", x = "Dimension 1", y = "Dimension 2") +
+     theme_minimal()
+
+##c. Heatmap of Sample Correlation
+# Compute correlation matrix
+cor_matrix <- cor(log_data)
+# Plot heatmap
+heatmap.2(cor_matrix, trace = "none", col = bluered(100),
+          main = "Sample Correlation Heatmap")
