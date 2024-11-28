@@ -1,1 +1,125 @@
+library("matrixTests")
+library("ggplot2")
+library("ggrepel")
 
+# I define here the working directory (do not forget the use '/' instead of '\')
+setwd("C:/Users/CFPB_TP/Documents/5BM578/")
+
+# Read a file a put the content in a data.frame
+data <- read.delim("./02_data/Project-1918Mice.txt")
+
+##b. extract conditions and timepoints
+sample_labels <- colnames(data)
+conditions <- gsub("_D[0-9]_[0-9]+", "", sample_labels) # Extract conditions
+timepoints <- gsub(".*_(D[0-9])_.*", "\\1", sample_labels) # Extract timepoints
+
+DE <- function(data, cond1, cond2) {
+  # Subset data based on conditions
+  data_cond1 <- data[, grepl(cond1, colnames(data))]
+  data_cond2 <- data[, grepl(cond2, colnames(data))]
+  # Perform t-tests assuming equal variance
+  ttest_results <- row_t_equalvar(data_cond1, data_cond2)
+  # Compute means and log2 fold changes
+  mean_cond1 <- rowMeans(data_cond1)
+  mean_cond2 <- rowMeans(data_cond2)
+  log2fc <- log2(mean_cond1 / mean_cond2)
+  # Create results dataframe
+  res <- data.frame(
+    genenames = rownames(data),
+    pvalue = ttest_results$pvalue,
+    log2fc = log2fc
+  )
+  # Add -log10(p-value) and direction (up/down/neutral)
+  res$mlog10pvalue <- -log10(res$pvalue)
+  res$dir <- "ns"
+  res$dir[res$log2fc > 0 & res$mlog10pvalue >= 2] <- "up-regulated"
+  res$dir[res$log2fc < 0 & res$mlog10pvalue >= 2] <- "down-regulated"
+  
+  # Select top 20 significant genes for labeling
+  top_res <- res[order(res$mlog10pvalue, decreasing = TRUE), ]
+  top_res <- top_res[1:20, ]
+  
+  # Generate volcano plot
+  plot <- ggplot() +
+    ggtitle("Volcano Plot") +
+    geom_point(data = res, aes(x = log2fc, y = mlog10pvalue, color = dir), size = 1) +
+    geom_text_repel(data = top_res, aes(x = log2fc, y = mlog10pvalue, label = genenames), size = 2, max.overlaps = Inf) +
+    scale_color_manual(values = c("down-regulated" = "green", "up-regulated" = "red", "ns" = "gray")) +
+    xlab("log2(fold-change)") +
+    ylab("-log10(p-value)") +
+    geom_hline(yintercept = 2, color = "gray", linetype = "dashed") +
+    theme_bw() +
+    theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+  
+  print(plot)
+  
+  # Return results dataframe
+  return(res)
+}
+
+DE_temp = DE(data, "mock", "PB2")
+
+#DE Cond1 and 2 for each time point 
+DE_timepoints <- function(data, cond1, cond2, timepoints) {
+  
+  # Initialize a list to store results for each time point
+  results_list <- list()
+  
+  # Loop over each time point
+  for (timepoint in timepoints) {
+    # Subset data for the current time point
+    data_timepoint <- data[, grepl(timepoint, colnames(data))]
+    
+    # Subset data for the two conditions at the current time point
+    data_cond1 <- data_timepoint[, grepl(cond1, colnames(data_timepoint))]
+    data_cond2 <- data_timepoint[, grepl(cond2, colnames(data_timepoint))]
+    
+    # Perform t-tests assuming equal variance
+    ttest_results <- row_t_equalvar(data_cond1, data_cond2)
+    
+    # Compute means and log2 fold changes
+    mean_cond1 <- rowMeans(data_cond1)
+    mean_cond2 <- rowMeans(data_cond2)
+    log2fc <- log2(mean_cond1 / mean_cond2)
+    
+    # Create results dataframe
+    res <- data.frame(
+      genenames = rownames(data),
+      pvalue = ttest_results$pvalue,
+      log2fc = log2fc
+    )
+    
+    # Add -log10(p-value) and direction (up/down/neutral)
+    res$mlog10pvalue <- -log10(res$pvalue)
+    res$dir <- "ns"
+    res$dir[res$log2fc > 0 & res$mlog10pvalue >= 2] <- "up-regulated"
+    res$dir[res$log2fc < 0 & res$mlog10pvalue >= 2] <- "down-regulated"
+    
+    # Select top 20 significant genes for labeling
+    top_res <- res[order(res$mlog10pvalue, decreasing = TRUE), ]
+    top_res <- top_res[1:20, ]
+    
+    # Generate volcano plot
+    plot <- ggplot() +
+      ggtitle(paste("Volcano Plot for Timepoint", timepoint)) +
+      geom_point(data = res, aes(x = log2fc, y = mlog10pvalue, color = dir), size = 1) +
+      geom_text_repel(data = top_res, aes(x = log2fc, y = mlog10pvalue, label = genenames), size = 2, max.overlaps = Inf) +
+      scale_color_manual(values = c("down-regulated" = "green", "up-regulated" = "red", "ns" = "gray")) +
+      xlab("log2(fold-change)") +
+      ylab("-log10(p-value)") +
+      geom_hline(yintercept = 2, color = "gray", linetype = "dashed") +
+      theme_bw() +
+      theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+    
+    # Print the plot
+    print(plot)
+    
+    # Store results in the list
+    results_list[[timepoint]] <- res
+  }
+  
+  # Return the list of results
+  return(results_list)
+}
+
+DE_PB2_D1 = DE_timepoints(data, "mock", "PB2", "D1")
