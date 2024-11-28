@@ -123,3 +123,53 @@ DE_timepoints <- function(data, cond1, cond2, timepoints) {
 }
 
 DE_PB2_D1 = DE_timepoints(data, "mock", "PB2", "D1")
+DE_PB2_D2 = DE_timepoints(data, "mock", "PB2", "D2")
+DE_WT_D1 = DE_timepoints(data, "mock", "WT", "D1")
+DE_WT_D2 = DE_timepoints(data, "mock", "WT", "D2")
+DE_WT_D4 = DE_timepoints(data, "mock", "WT", "D4")
+DE_HA_D1 = DE_timepoints(data, "mock", "HA", "D1")
+DE_HA_D2 = DE_timepoints(data, "mock", "HA", "D2")
+DE_HA_D4 = DE_timepoints(data, "mock", "HA", "D4")
+DE_like_D1 = DE_timepoints(data, "mock", "like", "D1")
+DE_like_D2 = DE_timepoints(data, "mock", "like", "D2")
+DE_like_D4 = DE_timepoints(data, "mock", "like", "D4")
+DE_DK_D1 = DE_timepoints(data, "mock", "DK", "D1")
+DE_DK_D2 = DE_timepoints(data, "mock", "DK", "D2")
+DE_DK_D4 = DE_timepoints(data, "mock", "DK", "D4")
+
+# Define a list of all DE objects
+DE_objects <- list(
+  DE_PB2_D1, DE_PB2_D2,
+  DE_WT_D1, DE_WT_D2, DE_WT_D4,
+  DE_HA_D1, DE_HA_D2, DE_HA_D4,
+  DE_like_D1, DE_like_D2, DE_like_D4,
+  DE_DK_D1, DE_DK_D2, DE_DK_D4
+)
+
+# Define a vector of object names (for labeling)
+DE_names <- c(
+  "PB2_D1", "PB2_D2",
+  "WT_D1", "WT_D2", "WT_D4",
+  "HA_D1", "HA_D2", "HA_D4",
+  "like_D1", "like_D2", "like_D4",
+  "DK_D1", "DK_D2", "DK_D4"
+)
+
+# Initialize lists to store upregulated and downregulated genes
+upregulated_lists <- list()
+downregulated_lists <- list()
+# Loop through each DE object
+for (i in seq_along(DE_objects)) {
+  # Extract the dataframe from the list
+  DE_df <- DE_objects[[i]][[1]]  # Extract the first element (dataframe) from the list
+  
+  # Filter upregulated and downregulated genes
+  upregulated_genes <- DE_df$genenames[DE_df$dir == "up-regulated"]
+  downregulated_genes <- DE_df$genenames[DE_df$dir == "down-regulated"]
+  
+  # Store the results with proper labels
+  upregulated_lists[[DE_names[i]]] <- upregulated_genes
+  downregulated_lists[[DE_names[i]]] <- downregulated_genes
+}
+
+save(upregulated_lists,file = "upregulated_lists.Rsave")
