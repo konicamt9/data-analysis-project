@@ -6,21 +6,10 @@ D1_lists <- upregulated_lists[grepl("_D1", names(upregulated_lists))]
 D2_lists <- upregulated_lists[grepl("_D2", names(upregulated_lists))]
 D4_lists <- upregulated_lists[grepl("_D4", names(upregulated_lists))]
 
-#Plot the 3 euler diagrams
-par(mfrow = c(1, 3))  # Arrange plots in a single row
-# D1
-D1_euler <- euler(D1_lists)
-plot(D1_euler, quantities = TRUE, main = "Euler Diagram - D1")
-# D2
-D2_euler <- euler(D2_lists)
-plot(D2_euler, quantities = TRUE, main = "Euler Diagram - D2")
-# D4
-D4_euler <- euler(D4_lists)
-plot(D4_euler, quantities = TRUE, main = "Euler Diagram - D4")
-
 # Extracting shared genes : 
 ##: Using D1_lists to create the Euler diagram
 D1_euler <- euler(D1_lists)
+plot(D1_euler, quantities = TRUE, main = "Upregulated genes - D1")
 # Extract subsets and their gene names
 D1_subsets <- lapply(names(D1_euler$original.values), function(subset) {
   # Split the subset string into individual sets
@@ -37,6 +26,7 @@ names(D1_subsets) <- names(D1_euler$original.values)
 
 # ForD2
 D2_euler <- euler(D2_lists)
+plot(D2_euler, quantities = TRUE, main = "Upregulated genes - D2")
 D2_subsets <- lapply(names(D2_euler$original.values), function(subset) {
   sets <- unlist(strsplit(subset, "&"))
   genes <- Reduce(intersect, D2_lists[sets])
@@ -48,8 +38,8 @@ D2_subsets <- lapply(names(D2_euler$original.values), function(subset) {
 names(D2_subsets) <- names(D2_euler$original.values)
 
 #D4
-# ForD2
 D4_euler <- euler(D4_lists)
+plot(D4_euler, quantities = TRUE, main = "Upregulated genes - D4")
 D4_subsets <- lapply(names(D4_euler$original.values), function(subset) {
   sets <- unlist(strsplit(subset, "&"))
   genes <- Reduce(intersect, D4_lists[sets])
@@ -60,22 +50,6 @@ D4_subsets <- lapply(names(D4_euler$original.values), function(subset) {
 })
 names(D4_subsets) <- names(D4_euler$original.values)
 
-##extract the euler subparts list of genes
-D1_subsets <- lapply(names(D1_euler$original.values), function(subset) {
-  # Split the subset string into individual sets
-  sets <- unlist(strsplit(subset, "&"))
-  
-  # Perform intersection or union of sets
-  genes <- Reduce(intersect, D1_lists[sets])
-  if (length(sets) == 1) {
-    genes <- D1_lists[[sets]]  # Handle individual sets (no intersection)
-  }
-  return(genes)
-})
-
-# Assign subset names to the list
-names(D1_subsets) <- names(D1_euler$original.values)
-
 
 D1_shared = D1_subsets$`PB2_D1&WT_D1&HA_D1&like_D1&DK_D1`
 D2_shared = D2_subsets$`PB2_D2&WT_D2&HA_D2&like_D2&DK_D2`
@@ -84,9 +58,9 @@ shared_genes = list(D1 = D1_shared, D2 = D2_shared, D4 = D4_shared)
 
 #Venn between D1, D2 and D4 shared genes
 shared_euler <- euler(shared_genes)
-plot(shared_euler, quantities = TRUE, main = "Euler Diagram - share genes")
+plot(shared_euler, quantities = TRUE, main = "Shared upregulated genes")
 
-#Extract subsets and their gene names in the last Venn diagram
+# Extract subsets and their gene names
 shared_subsets <- lapply(names(shared_euler$original.values), function(subset) {
   # Split the subset string into individual sets
   sets <- unlist(strsplit(subset, "&"))
@@ -102,3 +76,30 @@ shared_subsets <- lapply(names(shared_euler$original.values), function(subset) {
 # Assign subset names to the list
 names(shared_subsets) <- names(shared_euler$original.values)
 
+#extract specific signature genes
+specific_genes <- list()
+# Loop through each condition
+for (condition in names(D1_lists)) {
+  # Get genes for the current condition
+  condition_genes <- D1_lists[[condition]]
+  # Get genes from all other conditions
+  other_genes <- unlist(D1_lists[names(D1_lists) != condition])
+  # Compute specific genes using setdiff
+  specific_genes[[condition]] <- setdiff(condition_genes, other_genes)
+}
+#do it manually for the 3 timepoints 
+
+#merge commonly expressed genes across each timepoint, for each variant 
+variants <- c("PB2", "WT", "HA", "like", "DK")
+# Loop through each variant and compute shared genes
+for (variant in variants) {
+  # Use grepl to filter lists for the current variant
+  variant_lists <- specific_genes[grepl(variant, names(specific_genes))]
+  # Find shared genes across all timepoints for the variant
+  shared_genes <- Reduce(intersect, variant_lists)
+  # Add the shared genes as a new list to the existing list
+  specific_genes[[paste0(variant, "_shared")]] <- shared_genes
+}
+
+save(DataCell,file = "DataCell.Rsave")
+load("./rsave/DataCell.Rsave")
