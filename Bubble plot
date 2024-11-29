@@ -1,0 +1,21 @@
+enrichment_results_list <- list(
+  PB2_D1 = PB2_enrichment_D1,  # Enrichment results for PB2_D1
+  PB2_D2 = PB2_enrichment_D2,
+  WT_D1 = WT_enrichment_D1,
+  WT_D2 = WT_enrichment_D2,
+  WT_D4 = WT_enrichment_D4
+  # Add other variant-timepoint combinations
+)
+
+database <- "GO_Biological_Process_2023"
+
+# Create the bubble plot
+bubble_plot <- create_bubble_plot_comparison(
+  enrichment_results_list = enrichment_results_list,
+  database = database,
+  top_n = 10,  # Top 10 terms for each variant-timepoint
+  output_file = "bubble_plot_comparison.png"  # Save plot
+)
+
+# Display the plot
+print(bubble_plot)
