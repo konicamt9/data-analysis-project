@@ -1,0 +1,49 @@
+library(eulerr)
+
+#Comparisons between PB2 vs WT, day by day :
+## D1
+PB2vsWT_D1 = list(PB2 = D1_lists$PB2_D1, WT = D1_lists$WT_D1)
+PB2vsWT_D1_euler = euler(PB2vsWT_D1)
+plot(PB2vsWT_D1_euler, quantities = TRUE, main = "PB2 vs WT - D1")
+
+## D2 
+PB2vsWT_D2 = list(PB2 = D2_lists$PB2_D2, WT = D2_lists$WT_D2)
+PB2vsWT_D2_euler = euler(PB2vsWT_D2)
+plot(PB2vsWT_D2_euler, quantities = TRUE, main = "PB2 vs WT - D2")
+
+# Extract subsets of the Euler plot 
+## D1 
+PB2vsWT_D1_subsets <- lapply(names(PB2vsWT_D1_euler$original.values), function(subset) {
+  # Split the subset string into individual sets
+  sets <- unlist(strsplit(subset, "&"))
+  # Perform intersection or union of sets
+  genes <- Reduce(intersect, PB2vsWT_D1[sets])
+  if (length(sets) == 1) {
+    genes <- PB2vsWT_D1[[sets]]  # Handle individual sets (no intersection)
+  }
+  return(genes)
+})
+# Assign subset names to the list
+names(PB2vsWT_D1_subsets) <- names(PB2vsWT_D1_euler$original.values)
+# Compute setdiff for specific signature of each condition 
+PB2vsWT_D1_subsets$PB2_spe = setdiff(PB2vsWT_D1_subsets$PB2, PB2vsWT_D1_subsets$WT)
+PB2vsWT_D1_subsets$WT_spe = setdiff(PB2vsWT_D1_subsets$WT, PB2vsWT_D1_subsets$PB2)
+
+## D2 
+PB2vsWT_D2_subsets <- lapply(names(PB2vsWT_D2_euler$original.values), function(subset) {
+  # Split the subset string into individual sets
+  sets <- unlist(strsplit(subset, "&"))
+  # Perform intersection or union of sets
+  genes <- Reduce(intersect, PB2vsWT_D2[sets])
+  if (length(sets) == 1) {
+    genes <- PB2vsWT_D2[[sets]]  # Handle individual sets (no intersection)
+  }
+  return(genes)
+})
+# Assign subset names to the list
+names(PB2vsWT_D2_subsets) <- names(PB2vsWT_D2_euler$original.values)
+PB2vsWT_D2_subsets$PB2_spe = setdiff(PB2vsWT_D2_subsets$PB2, PB2vsWT_D2_subsets$WT)
+PB2vsWT_D2_subsets$WT_spe = setdiff(PB2vsWT_D2_subsets$WT, PB2vsWT_D2_subsets$PB2)
+
+PB2vs_WT_signature <- list(D1 = PB2vsWT_D1_subsets$PB2_spe, D2 = PB2vsWT_D2_subsets$PB2_spe)
+WTvsPB2_signature <- list(D1 = PB2vsWT_D1_subsets$WT_spe, D2 = PB2vsWT_D2_subsets$WT_spe)
