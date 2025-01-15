@@ -1,0 +1,11 @@
+library(UpSetR)
+library(gridExtra)
+library(ggplot2)
+
+upset(fromList(D1_lists), main.bar.color = "red")
+upset(fromList(D2_lists), main.bar.color = "red")
+upset(fromList(D4_lists), main.bar.color = "red")
+
+upset(fromList(D1_lists_down), main.bar.color = "darkgreen")
+upset(fromList(D2_lists_down), main.bar.color = "darkgreen")
+upset(fromList(D4_lists_down), main.bar.color = "darkgreen")
