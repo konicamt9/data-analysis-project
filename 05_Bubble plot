@@ -1,0 +1,162 @@
+library(dplyr)
+library(ggplot2)
+
+# Main multicolor bubble plot using all variants, all timepoints 
+## Define a base color for each variant
+variant_colors <- c(
+  "PB2" = "red",
+  "WT" = "blue",
+  "HA" = "green",
+  "like" = "purple",
+  "DK" = "orange"
+)
+
+## Bubble plot function 
+create_bubble_plot <- function(enrichment_results_list, top_n = "") {
+  # Combine all enrichment results into a single dataframe
+  combined_data <- do.call(rbind, lapply(names(enrichment_results_list), function(name) {
+    enrichment_data <- enrichment_results_list[[name]]
+    if (is.null(enrichment_data)) return(NULL)
+    
+    # Extract variant and timepoint from the name
+    enrichment_data$Variant <- sub("_.*", "", name)  # e.g., PB2
+    enrichment_data$Timepoint <- sub(".*_", "", name)  # e.g., D1
+    
+    # Add Gene_Count and mlog10pv columns if not already present
+    enrichment_data <- enrichment_data %>%
+      mutate(
+        Gene_Count = as.numeric(sub("/.*", "", Overlap)),  # Extract gene count from Overlap
+        mlog10pv = -log10(Adjusted.P.value)               # Compute -log10(P-value)
+      )
+    enrichment_data
+  }))
+  
+  # Ensure data is not NULL
+  if (is.null(combined_data)) {
+    stop("No enrichment data found in the provided list.")
+  }
+  
+  # Filter for significant terms and select top terms per variant and timepoint
+  filtered_data <- combined_data %>%
+    filter(mlog10pv >= 2) %>%
+    group_by(Variant, Timepoint) %>%
+    slice_max(order_by = mlog10pv, n = top_n) %>%
+    ungroup()
+  
+  # Combine Variant and Timepoint into a single label for the x-axis
+  filtered_data <- filtered_data %>%
+    mutate(Variant_Timepoint = paste(Variant, Timepoint, sep = "_"))  # Combine Variant and Timepoint
+  
+  variant_colors <- c(
+    "DK" = "#FFA500",  # Orange
+    "like" = "#32CD32",  # Green
+    "HA" = "#9370DB",  # Purple
+    "PB2" = "#4682B4",  # Blue
+    "WT" = "#DC143C"  # Red
+  )
+  
+  # Create the bubble plot
+  bubble_plot <- ggplot(filtered_data, aes(
+    x = Variant_Timepoint,  # Combined Variant and Timepoint on x-axis
+    y = Term,               # Enriched terms on y-axis
+    size = Gene_Count,      # Bubble size: Gene count
+    color = Variant         # Use base color for variants
+  )) +
+    geom_point(aes(alpha = mlog10pv)) +  # Alpha controls light-to-dark gradient
+    scale_color_manual(values = variant_colors) +  # Custom color for each variant
+    scale_size_continuous(name = "Gene Count", range = c(1, 8)) +  # Add size legend
+    scale_alpha_continuous(name = "-log10(P-value)", range = c(0.2, 0.8)) +  # Light to dark based on P-value
+    labs(
+      title = "FEA - Wikipathways_Mouse_2024",
+      x = "Variant and Timepoint",
+      y = "Enriched Term"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 8),
+      legend.position = "right"
+    )
+  
+  return(bubble_plot)
+}
+
+# V2 Function to do a single coloured bubble plot (useful for precise subparts)
+create_bubble_plot <- function(enrichment_results_list, top_n = "") {
+  # Combine all enrichment results into a single dataframe
+  combined_data <- do.call(rbind, lapply(names(enrichment_results_list), function(name) {
+    enrichment_data <- enrichment_results_list[[name]]
+    if (is.null(enrichment_data)) return(NULL)
+    
+    # Extract variant and timepoint from the name
+    enrichment_data$Variant <- sub("_.*", "", name)  # e.g., PB2
+    enrichment_data$Timepoint <- sub(".*_", "", name)  # e.g., D1
+    
+    # Add Gene_Count and mlog10pv columns if not already present
+    enrichment_data <- enrichment_data %>%
+      mutate(
+        Gene_Count = as.numeric(sub("/.*", "", Overlap)),  # Extract gene count from Overlap
+        mlog10pv = -log10(Adjusted.P.value)               # Compute -log10(P-value)
+      )
+    enrichment_data
+  }))
+  
+  # Ensure data is not NULL
+  if (is.null(combined_data)) {
+    stop("No enrichment data found in the provided list.")
+  }
+  
+  # Filter for significant terms and select top terms per variant and timepoint
+  filtered_data <- combined_data %>%
+    filter(mlog10pv >= 2) %>%
+    group_by(Variant, Timepoint) %>%
+    slice_max(order_by = mlog10pv, n = top_n) %>%
+    ungroup()
+  
+  # Combine Variant and Timepoint into a single label for the x-axis
+  filtered_data <- filtered_data %>%
+    mutate(Variant_Timepoint = paste(Variant, Timepoint, sep = "_"))  # Combine Variant and Timepoint
+  
+  # Create the bubble plot
+  bubble_plot <- ggplot(filtered_data, aes(
+    x = Variant_Timepoint,  # Combined Variant and Timepoint on x-axis
+    y = Term,               # Enriched terms on y-axis
+    size = Gene_Count,      # Bubble size: Gene count
+    color = mlog10pv        # Bubble color: -log10(P-value)
+  )) +
+    geom_point(alpha = 0.7) +
+    scale_color_gradient(low = "lightblue", high = "darkblue") +
+    labs(
+      title = "FEA - Wikipathways_Mouse_2024 - WT vs PB2 - D2",
+      x = "Variant and Timepoint",
+      y = "Enriched Term",
+      size = "Gene Count",
+      color = "-log10(P-value)"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 8),
+      legend.position = "right"
+    )
+  
+  return(bubble_plot)
+}
+
+
+# Generate the bubble plot
+bubble_plot <- create_bubble_plot(fea_wikip, top_n = 10)
+bubble_plot <- create_bubble_plot(fea_wikip_down, top_n = 40)
+
+bubble_plot <- create_bubble_plot(fea_wikip_PB2WT_D1, top_n = 20)
+bubble_plot <- create_bubble_plot(fea_wikip_PB2WT_D2, top_n = 20)
+
+bubble_plot <- create_bubble_plot(fea_wikip_spe, top_n = 40)
+bubble_plot <- create_bubble_plot(fea_wikip_P2, top_n = 40)
+bubble_plot <- create_bubble_plot(fea_wikip_WT, top_n = 40)
+
+# Print the plot
+print(bubble_plot)
+
