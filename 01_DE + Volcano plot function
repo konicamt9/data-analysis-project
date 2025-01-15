@@ -1,0 +1,127 @@
+library("matrixTests")
+library("ggplot2")
+library("ggrepel")
+
+# I define here the working directory (do not forget the use '/' instead of '\')
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/Master 2 /Master 2 I2S/07_Data Analysis")
+
+# Read a file a put the content in a data.frame
+data <- read.delim("./02_data/Project-1918Mice.txt")
+
+##b. extract conditions and timepoints
+sample_labels <- colnames(data)
+conditions <- gsub("_D[0-9]_[0-9]+", "", sample_labels) # Extract conditions
+timepoints <- gsub(".*_(D[0-9])_.*", "\\1", sample_labels) # Extract timepoints
+
+#DE Cond1 and 2 for each time point 
+DE_timepoints <- function(data, cond1, cond2, timepoints) {
+  
+  # Initialize a list to store results for each time point
+  results_list <- list()
+  
+  # Loop over each time point
+  for (timepoint in timepoints) {
+    # Subset data for the current time point
+    data_timepoint <- data[, grepl(timepoint, colnames(data))]
+    
+    # Subset data for the two conditions at the current time point
+    data_cond1 <- data_timepoint[, grepl(cond1, colnames(data_timepoint))]
+    data_cond2 <- data_timepoint[, grepl(cond2, colnames(data_timepoint))]
+    
+    # Perform t-tests assuming equal variance
+    ttest_results <- row_t_equalvar(data_cond1, data_cond2)
+    
+    # Compute means and log2 fold changes
+    mean_cond1 <- rowMeans(data_cond1)
+    mean_cond2 <- rowMeans(data_cond2)
+    log2fc <- log2(mean_cond2 / mean_cond1)
+    
+    # Create results dataframe
+    res <- data.frame(
+      genenames = rownames(data),
+      pvalue = ttest_results$pvalue,
+      log2fc = log2fc
+    )
+    
+    # Add -log10(p-value) and direction (up/down/neutral)
+    res$mlog10pvalue <- -log10(res$pvalue)
+    res$dir <- "ns"
+    res$dir[res$log2fc > 0 & res$mlog10pvalue >= 2] <- "up-regulated"
+    res$dir[res$log2fc < 0 & res$mlog10pvalue >= 2] <- "down-regulated"
+    
+    # Select top 20 significant genes for labeling
+    top_res <- res[order(res$mlog10pvalue, decreasing = TRUE), ]
+    top_res <- top_res[1:20, ]
+    
+    # Generate volcano plot
+    plot <- ggplot() +
+      ggtitle(paste(cond2, "Volcano Plot At", timepoint)) +
+      geom_point(data = res, aes(x = log2fc, y = mlog10pvalue, color = dir), size = 1) +
+      geom_text_repel(data = top_res, aes(x = log2fc, y = mlog10pvalue, label = genenames), size = 2, max.overlaps = Inf) +
+      scale_color_manual(values = c("down-regulated" = "green", "up-regulated" = "red", "ns" = "gray")) +
+      xlab("log2(fold-change)") +
+      ylab("-log10(p-value)") +
+      geom_hline(yintercept = 2, color = "gray", linetype = "dashed") +
+      theme_bw() +
+      theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+    
+    # Print the plot
+    print(plot)
+    
+    # Store results in the list
+    results_list[[timepoint]] <- res
+  }
+  
+  # Return the list of results
+  return(results_list)
+}
+
+DE_WT_D1 = DE_timepoints(data, "mock", "WT", "D1")
+DE_WT_D2 = DE_timepoints(data, "mock", "WT", "D2")
+DE_WT_D4 = DE_timepoints(data, "mock", "WT", "D4")
+DE_HA_D1 = DE_timepoints(data, "mock", "HA", "D1")
+DE_HA_D2 = DE_timepoints(data, "mock", "HA", "D2")
+DE_HA_D4 = DE_timepoints(data, "mock", "HA", "D4")
+DE_like_D1 = DE_timepoints(data, "mock", "like", "D1")
+DE_like_D2 = DE_timepoints(data, "mock", "like", "D2")
+DE_like_D4 = DE_timepoints(data, "mock", "like", "D4")
+DE_DK_D1 = DE_timepoints(data, "mock", "DK", "D1")
+DE_DK_D2 = DE_timepoints(data, "mock", "DK", "D2")
+DE_DK_D4 = DE_timepoints(data, "mock", "DK", "D4")
+DE_PB2_D1 = DE_timepoints(data, "mock", "PB2", "D1")
+DE_PB2_D2 = DE_timepoints(data, "mock", "PB2", "D2")
+
+# Define a list of all DE objects
+DE_objects <- list(
+  PB2_D1 = DE_PB2_D1, PB2_D2 = DE_PB2_D2,
+  WT_D1 = DE_WT_D1, WT_D2 = DE_WT_D2, WT_D4 = DE_WT_D4,
+  HA_D1 = DE_HA_D1, H1_D2 = DE_HA_D2, H1_D4 = DE_HA_D4,
+  like_D1 = DE_like_D1, like_D2 = DE_like_D2, like_D4 = DE_like_D4,
+  DK_D1 = DE_DK_D1, DK_D2 = DE_DK_D2, DK_D4 = DE_DK_D4
+)
+
+# Define a vector of object names (for labeling)
+DE_names <- c(
+  "PB2_D1", "PB2_D2",
+  "WT_D1", "WT_D2", "WT_D4",
+  "HA_D1", "HA_D2", "HA_D4",
+  "like_D1", "like_D2", "like_D4",
+  "DK_D1", "DK_D2", "DK_D4"
+)
+
+# Initialize lists to store upregulated and downregulated genes
+upregulated_lists <- list()
+downregulated_lists <- list()
+# Loop through each DE object
+for (i in seq_along(DE_objects)) {
+  # Extract the dataframe from the list
+  DE_df <- DE_objects[[i]][[1]]  # Extract the first element (dataframe) from the list
+  
+  # Filter upregulated and downregulated genes
+  upregulated_genes <- DE_df$genenames[DE_df$dir == "up-regulated"]
+  downregulated_genes <- DE_df$genenames[DE_df$dir == "down-regulated"]
+  
+  # Store the results with proper labels
+  upregulated_lists[[DE_names[i]]] <- upregulated_genes
+  downregulated_lists[[DE_names[i]]] <- downregulated_genes
+}
