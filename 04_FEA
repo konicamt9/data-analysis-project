@@ -1,0 +1,65 @@
+library(enrichR)
+
+# I define here the working directory (do not forget the use '/' instead of '\')
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/Master 2 /Master 2 I2S/Data Analysis")
+
+# List of potential relevant databases (mouse) 
+dbs <- listEnrichrDbs()
+sort(dbs$libraryName)
+dbs_benchmark <- c("GO_Molecular_Function_2023",
+         "GO_Cellular_Component_2023",
+         "GO_Biological_Process_2023",
+         "KEGG_2019_Mouse",
+         "Mouse_Gene_Atlas",
+         "Reactome_2022", 
+         "RNAseq_Automatic_GEO_Signatures_Mouse_Up",
+         "RNAseq_Automatic_GEO_Signatures_Mouse_Down",
+         "WikiPathways_2024_Mouse", "ARCHS4_Tissues", "ARCHS4_Cell-lines")
+
+# Select the selected database 
+dbs <- c("WikiPathways_2024_Mouse")
+
+# Function to perform FEA 
+perform_enrichment_analysis <- function(gene_lists, databases) {
+  # Initialize an empty list to store enrichment results
+  enrichment_results <- list()
+  
+  # Loop through each gene list in the input
+  for (name in names(gene_lists)) {
+    cat("Performing enrichment for:", name, "\n")
+    
+    # Perform enrichment analysis for the current gene list
+    enriched <- tryCatch({
+      enrichr(gene_lists[[name]], databases)
+    }, error = function(e) {
+      message("Error in enrichment for ", name, ": ", e$message)
+      return(NULL)
+    })
+    
+    # Process results for the specified database
+    if (!is.null(enriched) && databases %in% names(enriched)) {
+      fe_df <- enriched[[databases]]
+      fe_df$mlog10pv <- -log10(fe_df$Adjusted.P.value)  # Compute -log10(p-value)
+      fe_df <- fe_df[order(fe_df$mlog10pv, decreasing = TRUE), ]  # Order by significance
+      fe_df$Term <- factor(fe_df$Term, levels = rev(fe_df$Term))  # Factorize Terms
+      
+      # Store results in the list
+      enrichment_results[[name]] <- fe_df
+    } else {
+      enrichment_results[[name]] <- NULL
+    }
+  }
+  
+  return(enrichment_results)
+}
+
+#compute it manually, depending on the selected list 
+fea_wikip <- perform_enrichment_analysis(upregulated_lists, databases = dbs)          #all upregulated genes
+fea_wikip_down <- perform_enrichment_analysis(downregulated_lists, databases = dbs)   #all downregulated genes
+
+fea_wikip_PB2WT_D1 <- perform_enrichment_analysis(PB2vsWT_D1_subsets, databases = dbs)  #subsets of Euler plot PB2 vs WT at D1
+fea_wikip_PB2WT_D2 <- perform_enrichment_analysis(PB2vsWT_D2_subsets, databases = dbs)  #subsets of Euler plot PB2 vs WT at D2
+
+#Optional
+fea_wikip_P2 <- perform_enrichment_analysis(PB2vs_WT_signature, databases = dbs)      #Only specific signature of PB2, in Euler plot PB2 vs WT at D1
+fea_wikip_WT <- perform_enrichment_analysis(WTvsPB2_signature, databases = dbs)       #Only specific signature of WT, in Euler plot PB2 vs WT at D1
