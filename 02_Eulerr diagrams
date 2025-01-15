@@ -24,7 +24,7 @@ D1_subsets <- lapply(names(D1_euler$original.values), function(subset) {
 # Assign subset names to the list
 names(D1_subsets) <- names(D1_euler$original.values)
 
-# ForD2
+## D2
 D2_euler <- euler(D2_lists)
 plot(D2_euler, quantities = TRUE, main = "Upregulated genes - D2")
 D2_subsets <- lapply(names(D2_euler$original.values), function(subset) {
@@ -37,7 +37,7 @@ D2_subsets <- lapply(names(D2_euler$original.values), function(subset) {
 })
 names(D2_subsets) <- names(D2_euler$original.values)
 
-#D4
+## D4
 D4_euler <- euler(D4_lists)
 plot(D4_euler, quantities = TRUE, main = "Upregulated genes - D4")
 D4_subsets <- lapply(names(D4_euler$original.values), function(subset) {
@@ -56,15 +56,14 @@ D2_shared = D2_subsets$`PB2_D2&WT_D2&HA_D2&like_D2&DK_D2`
 D4_shared = D4_subsets$`WT_D4&HA_D4&like_D4&DK_D4`
 shared_genes = list(D1 = D1_shared, D2 = D2_shared, D4 = D4_shared)
 
-#Venn between D1, D2 and D4 shared genes
+# Euler between D1, D2 and D4 shared genes
 shared_euler <- euler(shared_genes)
-plot(shared_euler, quantities = TRUE, main = "Shared upregulated genes")
+plot(shared_euler, quantities = TRUE, main = "Shared upregulated genes across all timepoints")
 
 # Extract subsets and their gene names
 shared_subsets <- lapply(names(shared_euler$original.values), function(subset) {
   # Split the subset string into individual sets
   sets <- unlist(strsplit(subset, "&"))
-  
   # Perform intersection or union of sets
   genes <- Reduce(intersect, shared_genes[sets])
   if (length(sets) == 1) {
@@ -72,7 +71,6 @@ shared_subsets <- lapply(names(shared_euler$original.values), function(subset) {
   }
   return(genes)
 })
-
 # Assign subset names to the list
 names(shared_subsets) <- names(shared_euler$original.values)
 
@@ -87,7 +85,24 @@ for (condition in names(D1_lists)) {
   # Compute specific genes using setdiff
   specific_genes[[condition]] <- setdiff(condition_genes, other_genes)
 }
-#do it manually for the 3 timepoints 
+## D2
+for (condition in names(D2_lists)) {
+  # Get genes for the current condition
+  condition_genes <- D2_lists[[condition]]
+  # Get genes from all other conditions
+  other_genes <- unlist(D2_lists[names(D2_lists) != condition])
+  # Compute specific genes using setdiff
+  specific_genes[[condition]] <- setdiff(condition_genes, other_genes)
+}
+## D4
+for (condition in names(D4_lists)) {
+  # Get genes for the current condition
+  condition_genes <- D4_lists[[condition]]
+  # Get genes from all other conditions
+  other_genes <- unlist(D4_lists[names(D4_lists) != condition])
+  # Compute specific genes using setdiff
+  specific_genes[[condition]] <- setdiff(condition_genes, other_genes)
+}
 
 #merge commonly expressed genes across each timepoint, for each variant 
 variants <- c("PB2", "WT", "HA", "like", "DK")
@@ -101,5 +116,3 @@ for (variant in variants) {
   specific_genes[[paste0(variant, "_shared")]] <- shared_genes
 }
 
-save(DataCell,file = "DataCell.Rsave")
-load("./rsave/DataCell.Rsave")
