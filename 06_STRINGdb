@@ -1,0 +1,38 @@
+library("STRINGdb")
+
+# WARNING : too many genes inside each upregulated_lists[[subparts]], so i extract only significant genes using mlog10pvalue≥2 threshold
+extract_significant_genes <- function(data_frame_list, mlog10pv_threshold = 2) {
+  # Iterate over each data frame in the list and extract significant genes
+  lapply(data_frame_list, function(df) {
+    if (!is.null(df)) {
+      # Filter based on mlog10pvalue threshold
+      significant_genes <- df %>% 
+        filter(mlog10pv >= mlog10pv_threshold) %>% 
+        pull(Genes)  # Extract the "Genes" column
+      # Split gene lists by ";" and return as a unique vector of genes
+      unique(unlist(strsplit(significant_genes, ";")))
+    } else {
+      return(NULL)
+    }
+  })
+}
+
+# Apply the function to your data after FEA analysis 
+filtered_genes <- extract_significant_genes(fea_wikip)
+
+# Initialize STRINGdb for mouse (species ID: 10090)
+string_db <- STRINGdb$new(version = "12", species = 10090, score_threshold = 400)
+
+# Example gene list
+WT_D1_genes <- filtered_genes[["WT_D1"]]
+WT_D1_df <- data.frame(genes = WT_D1_genes)
+
+# Map genes to STRING IDs
+WT_D1_map <- string_db$map(WT_D1_df, "genes", removeUnmappedRows = TRUE)
+
+# Plot network
+string_db$plot_network(WT_D1_map$STRING_id)
+
+# Optional : perform enrichment analysis (Andy : I honestly didn't understand the utility of this) 
+enrichment_results <- string_db$get_enrichment(WT_D1_map$STRING_id)
+print(enrichment_results)
