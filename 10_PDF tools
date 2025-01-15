@@ -1,0 +1,41 @@
+library(pdftools)
+library(grid)
+library(gridExtra)
+library(magick)
+
+# Function to annotate using letter and then merge on a single page PDF
+merge_pdfs <- function(input_pdfs, output_pdf, ncol = 2, dpi = 1200, height = 1500) {
+  # Convert each PDF to a high-resolution image and add letter annotations
+  images <- lapply(seq_along(input_pdfs), function(i) {
+    # Render the PDF page as a high-resolution image
+    page_image <- image_read(pdf_render_page(input_pdfs[i], dpi = dpi))
+    # Add letter annotation (A, B, C, ...)
+    annotated_image <- image_annotate(page_image, text = LETTERS[i], 
+                                      size = 120, gravity = "NorthWest", 
+                                      color = "black", location = "+30+30")
+    return(annotated_image)
+  })
+  # Combine images into a single page (arranged in a grid)
+  combined_image <- image_montage(
+    do.call(c, images), 
+    tile = paste0(ncol, "x"),  # Number of columns
+    geometry = paste0("x", height, "+10+10")  # Image height and padding
+  )
+  # Save the combined image as a high-quality single-page PDF
+  image_write(combined_image, path = output_pdf, format = "pdf")
+  
+  message(paste("Single-page PDF saved to:", output_pdf))
+}
+
+# usage:
+euler_pdfs <- list.files("~/Library/Mobile Documents/com~apple~CloudDocs/Master 2 /Master 2 I2S/07_Data Analysis/03_figures/01_euler/pdfs", pattern = "\\.pdf$", full.names = TRUE)
+euler_pdfs <- euler_pdfs[grepl("/04_", euler_pdfs)]
+merge_pdfs(input_pdfs = euler_pdfs, output_pdf = "euler_plots_down_merged.pdf")
+
+#upset plots
+upset_pdfs <- list.files("~/Library/Mobile Documents/com~apple~CloudDocs/Master 2 /Master 2 I2S/07_Data Analysis/03_figures/05_upset", pattern = "\\.pdf$", full.names = TRUE)
+merge_pdfs(input_pdfs = upset_pdfs, output_pdf = "upset_plots_down_merged.pdf")
+
+#PB2 vs WT comparisons (Euler + bubble) 
+pb2wt_pdfs <- list.files("~/Library/Mobile Documents/com~apple~CloudDocs/Master 2 /Master 2 I2S/07_Data Analysis/03_figures/06_fea_bubble/pb2_wt", pattern = "\\.pdf$", full.names = TRUE)
+merge_pdfs(input_pdfs = pb2wt_pdfs, output_pdf = "pb2_wt_article.pdf")
