@@ -1,6 +1,7 @@
 library("STRINGdb")
 
-# WARNING : too many genes inside each upregulated_lists[[subparts]], so i extract only significant genes using mlog10pvalue≥2 threshold
+## too many genes, so i extract only mlog10pvalue≥2 
+#Function to extract significant genes 
 extract_significant_genes <- function(data_frame_list, mlog10pv_threshold = 2) {
   # Iterate over each data frame in the list and extract significant genes
   lapply(data_frame_list, function(df) {
@@ -9,6 +10,7 @@ extract_significant_genes <- function(data_frame_list, mlog10pv_threshold = 2) {
       significant_genes <- df %>% 
         filter(mlog10pv >= mlog10pv_threshold) %>% 
         pull(Genes)  # Extract the "Genes" column
+      
       # Split gene lists by ";" and return as a unique vector of genes
       unique(unlist(strsplit(significant_genes, ";")))
     } else {
@@ -17,11 +19,11 @@ extract_significant_genes <- function(data_frame_list, mlog10pv_threshold = 2) {
   })
 }
 
-# Apply the function to your data after FEA analysis 
-filtered_genes <- extract_significant_genes(fea_wikip)
+# Apply the function to your data
+filtered_genes <- extract_significant_genes(fea_wikip_HAlike_D1)
 
-# Initialize STRINGdb for mouse (species ID: 10090)
-string_db <- STRINGdb$new(version = "12", species = 10090, score_threshold = 400)
+# Initialize STRINGdb for mouse (species ID: 10090 ; score_threshold ranges from 0 to 1000 for confidence score of interaction)
+string_db <- STRINGdb$new(version = "12", species = 10090, score_threshold = 900)
 
 # Example gene list
 WT_D1_genes <- filtered_genes[["WT_D1"]]
@@ -30,9 +32,68 @@ WT_D1_df <- data.frame(genes = WT_D1_genes)
 # Map genes to STRING IDs
 WT_D1_map <- string_db$map(WT_D1_df, "genes", removeUnmappedRows = TRUE)
 
+#optional : filter the top 50 ranked genes
+top_genes <- WT_D1_map %>% head(50)  # Keep only the first 50 genes for visualization
+
 # Plot network
 string_db$plot_network(WT_D1_map$STRING_id)
+string_db$plot_network(top_genes$STRING_id)
 
-# Optional : perform enrichment analysis (Andy : I honestly didn't understand the utility of this) 
+
+#### Perform enrichment analysis
 enrichment_results <- string_db$get_enrichment(WT_D1_map$STRING_id)
 print(enrichment_results)
+
+# Keep only key columns
+key_columns <- c("category", "term", "description", "number_of_genes", "p_value", "fdr", "preferredNames")
+key_results <- enrichment_results[, key_columns]
+# Filter for significant terms (FDR < 0.05)
+key_results <- key_results %>% filter(fdr < 0.05)
+# Sort by fdr 
+key_results <- key_results %>% arrange(fdr)
+head(key_results, 10)
+# Summarize results by category for global vision
+summary_by_category <- key_results %>% 
+  group_by(category) %>% 
+  summarise(count = n())
+print(summary_by_category)
+# Simplified output table
+key_columns <- c("category", "description", "number_of_genes", "p_value", "fdr")
+simplified_results <- significant_results[, key_columns]
+head(simplified_results)
+
+
+# Group by category and sort by FDR, then extract the top 3 rows for each category
+top_results <- key_results %>%
+  group_by(category) %>%
+  arrange(fdr) %>%
+  slice_head(n = 10) %>%  # Select the top 10 entries per category
+  select(category, description, fdr)
+# Print the results
+print(top_results)
+
+# Bar plot 
+ggplot(top_results, aes(x = reorder(description, fdr), y = -log10(fdr), fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Top Enrichment Terms by Category",
+    x = "Enrichment Term Description",
+    y = "-log10(FDR)",
+    fill = "Category"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+# Dot plot 
+ggplot(top_results, aes(x = reorder(description, fdr), y = -log10(fdr), color = category)) +
+  geom_point(size = 3) +
+  geom_segment(aes(x = reorder(description, fdr), xend = reorder(description, fdr), y = 0, yend = -log10(fdr))) +
+  coord_flip() +
+  labs(
+    title = "Top Enrichment Terms by Category",
+    x = "Enrichment Term Description",
+    y = "-log10(FDR)",
+    color = "Category"
+  ) +
+  theme_minimal()
